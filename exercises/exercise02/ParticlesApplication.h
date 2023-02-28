@@ -50,6 +50,9 @@ private:
     // Location of the "Gravity" uniform
     ShaderProgram::Location m_gravityUniform;
 
+    // Location of the "WorldMatrix" uniform
+    ShaderProgram::Location m_WorldMatrix;
+
     // Mouse position during this frame
     glm::vec2 m_mousePosition;
 
