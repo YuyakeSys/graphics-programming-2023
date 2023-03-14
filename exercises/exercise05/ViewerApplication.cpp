@@ -51,6 +51,7 @@ void ViewerApplication::Render()
     GetDevice().Clear(true, Color(0.0f, 0.0f, 0.0f, 1.0f), true, 1.0f);
 
     m_model.Draw();
+    RenderGUI();
 }
 
 void ViewerApplication::Cleanup()
@@ -64,8 +65,8 @@ void ViewerApplication::Cleanup()
 void ViewerApplication::InitializeModel()
 {
     // Load and build shader
-    Shader vertexShader = ShaderLoader::Load(Shader::VertexShader, "shaders/unlit.vert");
-    Shader fragmentShader = ShaderLoader::Load(Shader::FragmentShader, "shaders/unlit.frag");
+    Shader vertexShader = ShaderLoader::Load(Shader::VertexShader, "shaders/blinn-phong.vert");
+    Shader fragmentShader = ShaderLoader::Load(Shader::FragmentShader, "shaders/blinn-phong.frag");
     std::shared_ptr<ShaderProgram> shaderProgram = std::make_shared<ShaderProgram>();
     shaderProgram->Build(vertexShader, fragmentShader);
 
@@ -73,23 +74,51 @@ void ViewerApplication::InitializeModel()
     ShaderUniformCollection::NameSet filteredUniforms;
     filteredUniforms.insert("WorldMatrix");
     filteredUniforms.insert("ViewProjMatrix");
+    filteredUniforms.insert("AmbientColor"); 
+    filteredUniforms.insert("DiffuseReflection");
+    filteredUniforms.insert("LightColor");
+    filteredUniforms.insert("LightPostion");
+    // 2d loader
+    Texture2DLoader loader2d(Texture2DObject::Format::FormatRGBA,Texture2DObject::InternalFormat::InternalFormatRGBA8);
+    loader2d.SetFlipVertical(true);
+    std::vector<std::string> paths{ "models/mill/Ground_shadow.jpg", "models/mill/Ground_color.jpg", "models/mill/MillCat_color.jpg" };
+    std::shared_ptr<Texture2DObject> groundShadowTexture = loader2d.LoadShared(paths[0].c_str());
+    std::shared_ptr<Texture2DObject> groundColorTexture = loader2d.LoadShared(paths[1].c_str());
+    std::shared_ptr<Texture2DObject> millCatTexture = loader2d.LoadShared(paths[2].c_str());
 
     // Create reference material
     std::shared_ptr<Material> material = std::make_shared<Material>(shaderProgram, filteredUniforms);
     material->SetUniformValue("Color", glm::vec4(1.0f));
+    material -> SetUniformValue("Texture2DLoader", groundShadowTexture);
 
+    
     // Setup function
     ShaderProgram::Location worldMatrixLocation = shaderProgram->GetUniformLocation("WorldMatrix");
     ShaderProgram::Location viewProjMatrixLocation = shaderProgram->GetUniformLocation("ViewProjMatrix");
+    ShaderProgram::Location AmbientColorLocation = shaderProgram->GetUniformLocation("AmbientColor");
+    ShaderProgram::Location AmbientReflectionLocation = shaderProgram->GetUniformLocation("AmbientReflection"); 
+    ShaderProgram::Location DiffuseReflectionLocation = shaderProgram->GetUniformLocation("DiffuseReflection");
+    ShaderProgram::Location LightColorLocation = shaderProgram->GetUniformLocation("LightColor"); 
+    ShaderProgram::Location LightPositionLocation = shaderProgram->GetUniformLocation("LightPosition");
     material->SetShaderSetupFunction([=](ShaderProgram& shaderProgram)
         {
             shaderProgram.SetUniform(worldMatrixLocation, glm::scale(glm::vec3(0.1f)));
             shaderProgram.SetUniform(viewProjMatrixLocation, m_camera.GetViewProjectionMatrix());
-
+            shaderProgram.SetUniform(AmbientColorLocation, m_ambientColor);
+            shaderProgram.SetUniform(AmbientReflectionLocation, m_ambientRefl);
+            shaderProgram.SetUniform(DiffuseReflectionLocation, m_difffuseRefl);
+            shaderProgram.SetUniform(LightColorLocation, m_lightColor);
+            shaderProgram.SetUniform(LightPositionLocation, m_lightPosition);
             // (todo) 05.X: Set camera and light uniforms
 
 
         });
+
+    std::shared_ptr<Material> material1 = std::make_shared<Material>(*material);
+    material1->SetUniformValue("Texture2DLoader", groundColorTexture);
+
+    std::shared_ptr<Material> material2 = std::make_shared<Material>(*material);
+    material2->SetUniformValue("Texture2DLoader", millCatTexture);
 
     // Configure loader
     ModelLoader loader(material);
@@ -101,7 +130,9 @@ void ViewerApplication::InitializeModel()
     m_model = loader.Load("models/mill/Mill.obj");
 
     // (todo) 05.1: Load and set textures
-
+    m_model.SetMaterial(0, material);
+    m_model.SetMaterial(1, material1);
+    m_model.SetMaterial(2, material2);
 }
 
 void ViewerApplication::InitializeCamera()
@@ -118,6 +149,7 @@ void ViewerApplication::InitializeLights()
 {
     // (todo) 05.X: Initialize light variables
 
+
 }
 
 void ViewerApplication::RenderGUI()
@@ -125,6 +157,8 @@ void ViewerApplication::RenderGUI()
     m_imGui.BeginFrame();
 
     // (todo) 05.4: Add debug controls for light properties
+    //ImGui::DragFloat("m_ambientRefl", &m_ambientRefl);
+
 
     m_imGui.EndFrame();
 }
